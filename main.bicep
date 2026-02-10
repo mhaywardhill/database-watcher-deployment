@@ -164,7 +164,7 @@ resource adxDatabasePrincipal 'Microsoft.Kusto/clusters/databases/principalAssig
 // ============================================================================
 // Database Watcher
 // ============================================================================
-resource watcher 'Microsoft.DatabaseWatcher/watchers@2025-01-02' = {
+resource watcher 'Microsoft.DatabaseWatcher/watchers@2024-10-01-preview' = {
   name: watcherName
   location: location
   tags: tags
@@ -193,7 +193,7 @@ resource watcher 'Microsoft.DatabaseWatcher/watchers@2025-01-02' = {
 // ============================================================================
 // Database Watcher Target - SQL Database
 // ============================================================================
-resource watcherTarget 'Microsoft.DatabaseWatcher/watchers/targets@2025-01-02' = {
+resource watcherTarget 'Microsoft.DatabaseWatcher/watchers/targets@2024-10-01-preview' = {
   parent: watcher
   name: 'target-${sqlDatabaseName}'
   properties: {
