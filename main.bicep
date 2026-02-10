@@ -37,11 +37,11 @@ param adxDatabaseName string = 'sqlmonitoring'
 
 @description('ADX cluster SKU name')
 @allowed([
-  'Dev(No SLA)_Standard_E2a_v4'
+  'Dev(No SLA)_Standard_D11_v2'
   'Standard_E2ads_v5'
   'Standard_E4ads_v5'
 ])
-param adxSkuName string = 'Dev(No SLA)_Standard_E2a_v4'
+param adxSkuName string = 'Dev(No SLA)_Standard_D11_v2'
 
 @description('ADX cluster SKU tier')
 @allowed([
