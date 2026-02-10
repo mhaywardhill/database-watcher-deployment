@@ -51,30 +51,30 @@ DEPLOYMENT_OUTPUT=$(az deployment group create \
 echo "[3/4] Extracting outputs..."
 SQL_FQDN=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.properties.outputs.sqlServerFqdn.value')
 ADX_URI=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.properties.outputs.adxClusterUri.value')
-MI_PRINCIPAL_ID=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.properties.outputs.managedIdentityPrincipalId.value')
+WATCHER_PRINCIPAL_ID=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.properties.outputs.watcherPrincipalId.value')
 
-# ---------- Grant managed identity access to SQL ----------
-echo "[4/4] Granting Database Watcher managed identity access to SQL Server..."
+# ---------- Grant watcher identity access to SQL ----------
+echo "[4/4] Post-deployment steps..."
 echo ""
 echo "=================================================="
 echo "  IMPORTANT - Manual step required"
 echo "=================================================="
 echo ""
-echo "You must grant the Database Watcher managed identity"
-echo "read access to your SQL database. Connect to your"
-echo "SQL database and run the following T-SQL:"
+echo "You must grant the Database Watcher system-assigned"
+echo "managed identity read access to your SQL database."
+echo "Connect to your SQL database and run the following T-SQL:"
 echo ""
-echo "  CREATE USER [id-${WATCHER_NAME}] FROM EXTERNAL PROVIDER;"
-echo "  ALTER ROLE [db_datareader] ADD MEMBER [id-${WATCHER_NAME}];"
-echo "  GRANT VIEW DATABASE PERFORMANCE STATE TO [id-${WATCHER_NAME}];"
-echo "  GRANT VIEW SERVER PERFORMANCE STATE TO [id-${WATCHER_NAME}];"
+echo "  CREATE USER [${WATCHER_NAME}] FROM EXTERNAL PROVIDER;"
+echo "  ALTER ROLE [db_datareader] ADD MEMBER [${WATCHER_NAME}];"
+echo "  GRANT VIEW DATABASE PERFORMANCE STATE TO [${WATCHER_NAME}];"
+echo "  GRANT VIEW SERVER PERFORMANCE STATE TO [${WATCHER_NAME}];"
 echo ""
 
 # ---------- Start the watcher ----------
 echo "Starting Database Watcher..."
 az rest \
   --method post \
-  --url "https://management.azure.com/subscriptions/$(az account show --query id -o tsv)/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.DatabaseWatcher/watchers/${WATCHER_NAME}/start?api-version=2024-10-01-preview" \
+  --url "https://management.azure.com/subscriptions/$(az account show --query id -o tsv)/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.DatabaseWatcher/watchers/${WATCHER_NAME}/start?api-version=2023-09-01-preview" \
   --output none 2>/dev/null || echo "Note: Start the watcher manually after granting SQL permissions."
 
 echo ""
@@ -85,6 +85,7 @@ echo "SQL Server FQDN   : $SQL_FQDN"
 echo "ADX Cluster URI    : $ADX_URI"
 echo "ADX Database       : sqlmonitoring"
 echo "Watcher            : $WATCHER_NAME"
+echo "Watcher Principal  : $WATCHER_PRINCIPAL_ID"
 echo ""
 echo "Next steps:"
 echo "  1. Run the T-SQL above on your SQL database"

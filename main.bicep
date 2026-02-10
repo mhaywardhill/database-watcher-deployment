@@ -60,15 +60,6 @@ param tags object = {
 }
 
 // ============================================================================
-// User-Assigned Managed Identity for Database Watcher
-// ============================================================================
-resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: 'id-${watcherName}'
-  location: location
-  tags: tags
-}
-
-// ============================================================================
 // SQL Server
 // ============================================================================
 resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
@@ -125,7 +116,7 @@ resource adxCluster 'Microsoft.Kusto/clusters@2023-08-15' = {
     capacity: 1
   }
   identity: {
-    type: 'SystemAssigned'
+    type: 'None'
   }
   properties: {
     enableStreamingIngest: true
@@ -148,31 +139,14 @@ resource adxDatabase 'Microsoft.Kusto/clusters/databases@2023-08-15' = {
 }
 
 // ============================================================================
-// Grant Managed Identity admin rights on ADX database
+// Database Watcher (with SystemAssigned identity)
 // ============================================================================
-resource adxDatabasePrincipal 'Microsoft.Kusto/clusters/databases/principalAssignments@2023-08-15' = {
-  parent: adxDatabase
-  name: 'watcherIdentityAdmin'
-  properties: {
-    principalId: managedIdentity.properties.principalId
-    principalType: 'App'
-    role: 'Admin'
-    tenantId: tenant().tenantId
-  }
-}
-
-// ============================================================================
-// Database Watcher
-// ============================================================================
-resource watcher 'Microsoft.DatabaseWatcher/watchers@2024-10-01-preview' = {
+resource watcher 'Microsoft.DatabaseWatcher/watchers@2023-09-01-preview' = {
   name: watcherName
   location: location
   tags: tags
   identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${managedIdentity.id}': {}
-    }
+    type: 'SystemAssigned'
   }
   properties: {
     datastore: {
@@ -180,20 +154,34 @@ resource watcher 'Microsoft.DatabaseWatcher/watchers@2024-10-01-preview' = {
       kustoClusterDisplayName: adxCluster.name
       kustoClusterUri: adxCluster.properties.uri
       kustoDatabaseName: adxDatabase.name
-      kustoManagementUrl: adxCluster.properties.uri
+      kustoManagementUrl: '${environment().portal}/#@${tenant().tenantId}/resource${adxCluster.id}'
       kustoDataIngestionUri: adxCluster.properties.dataIngestionUri
       kustoOfferingType: 'adx'
     }
   }
   dependsOn: [
-    adxDatabasePrincipal
+    adxDatabase
   ]
+}
+
+// ============================================================================
+// Grant Watcher's system identity Admin on ADX database (after watcher exists)
+// ============================================================================
+resource adxDatabasePrincipal 'Microsoft.Kusto/clusters/databases/principalAssignments@2023-08-15' = {
+  parent: adxDatabase
+  name: 'watcherIdentityAdmin'
+  properties: {
+    principalId: watcher.identity.principalId
+    principalType: 'App'
+    role: 'Admin'
+    tenantId: watcher.identity.tenantId
+  }
 }
 
 // ============================================================================
 // Database Watcher Target - SQL Database
 // ============================================================================
-resource watcherTarget 'Microsoft.DatabaseWatcher/watchers/targets@2024-10-01-preview' = {
+resource watcherTarget 'Microsoft.DatabaseWatcher/watchers/targets@2023-09-01-preview' = {
   parent: watcher
   name: 'target-${sqlDatabaseName}'
   properties: {
@@ -213,5 +201,4 @@ output sqlDatabaseName string = sqlDatabase.name
 output adxClusterUri string = adxCluster.properties.uri
 output adxDatabaseName string = adxDatabase.name
 output watcherName string = watcher.name
-output managedIdentityPrincipalId string = managedIdentity.properties.principalId
-output managedIdentityClientId string = managedIdentity.properties.clientId
+output watcherPrincipalId string = watcher.identity.principalId
