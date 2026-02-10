@@ -4,6 +4,7 @@
   "features": {
     "ghcr.io/devcontainers/features/azure-cli:1": {}
   },
+  "postCreateCommand": "az --version || (curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash)",
   "customizations": {
     "vscode": {
       "extensions": [
