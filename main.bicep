@@ -196,7 +196,8 @@ resource watcherTarget 'Microsoft.DatabaseWatcher/watchers/targets@2024-10-01-pr
   properties: {
     targetType: 'SqlDb'
     sqlDbResourceId: sqlDatabase.id
-    connectionServerName: '${sqlServerName}.database.windows.net'
+    connectionServerName: '${sqlServerName}${environment().suffixes.sqlServerHostname}'
+    targetAuthenticationType: 'Aad'
     readIntent: false
   }
 }
