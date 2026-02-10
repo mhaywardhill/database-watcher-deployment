@@ -185,6 +185,9 @@ resource watcher 'Microsoft.DatabaseWatcher/watchers@2024-10-01-preview' = {
       kustoOfferingType: 'adx'
     }
   }
+  dependsOn: [
+    adxDatabasePrincipal
+  ]
 }
 
 // ============================================================================
