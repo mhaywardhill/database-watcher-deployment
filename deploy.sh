@@ -74,7 +74,7 @@ echo ""
 echo "Starting Database Watcher..."
 az rest \
   --method post \
-  --url "https://management.azure.com/subscriptions/$(az account show --query id -o tsv)/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.DatabaseWatcher/watchers/${WATCHER_NAME}/start?api-version=2023-09-01-preview" \
+  --url "https://management.azure.com/subscriptions/$(az account show --query id -o tsv)/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.DatabaseWatcher/watchers/${WATCHER_NAME}/start?api-version=2024-10-01-preview" \
   --output none 2>/dev/null || echo "Note: Start the watcher manually after granting SQL permissions."
 
 echo ""

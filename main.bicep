@@ -139,14 +139,54 @@ resource adxDatabase 'Microsoft.Kusto/clusters/databases@2023-08-15' = {
 }
 
 // ============================================================================
-// Database Watcher (with SystemAssigned identity)
+// Enable streaming ingestion policy on ADX database
+// (Required by Database Watcher for data ingestion)
 // ============================================================================
-resource watcher 'Microsoft.DatabaseWatcher/watchers@2023-09-01-preview' = {
+resource adxStreamingIngestion 'Microsoft.Kusto/clusters/databases/scripts@2023-08-15' = {
+  parent: adxDatabase
+  name: 'enableStreamingIngestion'
+  properties: {
+    scriptContent: '.alter database ${adxDatabaseName} policy streamingingestion enable'
+    continueOnErrors: false
+  }
+}
+
+// ============================================================================
+// User-Assigned Managed Identity for Database Watcher
+// (Created first so we can grant ADX access before the watcher is created)
+// ============================================================================
+resource watcherIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: '${watcherName}-identity'
+  location: location
+  tags: tags
+}
+
+// ============================================================================
+// Grant watcher identity Admin on ADX database BEFORE creating the watcher
+// ============================================================================
+resource adxDatabasePrincipal 'Microsoft.Kusto/clusters/databases/principalAssignments@2023-08-15' = {
+  parent: adxDatabase
+  name: 'watcherIdentityAdmin'
+  properties: {
+    principalId: watcherIdentity.properties.principalId
+    principalType: 'App'
+    role: 'Admin'
+    tenantId: watcherIdentity.properties.tenantId
+  }
+}
+
+// ============================================================================
+// Database Watcher (with User-Assigned identity, pre-authorized on ADX)
+// ============================================================================
+resource watcher 'Microsoft.DatabaseWatcher/watchers@2024-10-01-preview' = {
   name: watcherName
   location: location
   tags: tags
   identity: {
-    type: 'SystemAssigned'
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${watcherIdentity.id}': {}
+    }
   }
   properties: {
     datastore: {
@@ -160,34 +200,21 @@ resource watcher 'Microsoft.DatabaseWatcher/watchers@2023-09-01-preview' = {
     }
   }
   dependsOn: [
-    adxDatabase
+    adxDatabasePrincipal
+    adxStreamingIngestion
   ]
-}
-
-// ============================================================================
-// Grant Watcher's system identity Admin on ADX database (after watcher exists)
-// ============================================================================
-resource adxDatabasePrincipal 'Microsoft.Kusto/clusters/databases/principalAssignments@2023-08-15' = {
-  parent: adxDatabase
-  name: 'watcherIdentityAdmin'
-  properties: {
-    principalId: watcher.identity.principalId
-    principalType: 'App'
-    role: 'Admin'
-    tenantId: watcher.identity.tenantId
-  }
 }
 
 // ============================================================================
 // Database Watcher Target - SQL Database
 // ============================================================================
-resource watcherTarget 'Microsoft.DatabaseWatcher/watchers/targets@2023-09-01-preview' = {
+resource watcherTarget 'Microsoft.DatabaseWatcher/watchers/targets@2024-10-01-preview' = {
   parent: watcher
   name: 'target-${sqlDatabaseName}'
   properties: {
     targetType: 'SqlDb'
     sqlDbResourceId: sqlDatabase.id
-    connectionServerName: '${sqlServerName}${environment().suffixes.sqlServerHostname}'
+    connectionServerName: sqlServer.properties.fullyQualifiedDomainName
     targetAuthenticationType: 'Aad'
     readIntent: false
   }
@@ -201,4 +228,4 @@ output sqlDatabaseName string = sqlDatabase.name
 output adxClusterUri string = adxCluster.properties.uri
 output adxDatabaseName string = adxDatabase.name
 output watcherName string = watcher.name
-output watcherPrincipalId string = watcher.identity.principalId
+output watcherPrincipalId string = watcherIdentity.properties.principalId
